@@ -4,10 +4,14 @@ namespace SkyHackeR\MultiAuth\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\File;
 use SkyHackeR\MultiAuth\Console\Commands\MultiAuthInstallCommand;
 
 class MultiAuthServiceProvider extends ServiceProvider
 {
+    /**
+     * Bootstrap the application services.
+     */
     public function boot()
     {
         if ($this->app->runningInConsole()) {
@@ -19,16 +23,36 @@ class MultiAuthServiceProvider extends ServiceProvider
         $this->registerIdentityRoutes();
     }
 
+    /**
+     * Automatically register custom identity route files.
+     */
     protected function registerIdentityRoutes()
     {
         $routePath = base_path('routes');
-        if (is_dir($routePath)) {
-            foreach (scandir($routePath) as $file) {
-                $name = pathinfo($file, PATHINFO_FILENAME);
-                if (!in_array($name, ['web', 'api', 'console', 'channels', '.', '..'])) {
-                    Route::middleware('web')->group($routePath . '/' . $file);
+
+        if (File::isDirectory($routePath)) {
+            // Get all PHP files in the routes directory
+            $files = File::files($routePath);
+
+            foreach ($files as $file) {
+                $filename = $file->getFilenameWithoutExtension();
+                
+                // Skip standard Laravel route files
+                $standardRoutes = ['web', 'api', 'console', 'channels'];
+
+                if (!in_array($filename, $standardRoutes)) {
+                    Route::middleware('web')
+                        ->group($file->getPathname());
                 }
             }
         }
+    }
+
+    /**
+     * Register the application services.
+     */
+    public function register()
+    {
+        //
     }
 }
