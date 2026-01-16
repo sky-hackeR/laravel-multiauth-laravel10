@@ -1,0 +1,4 @@
+@extends('{{LowerName}}.layout.app')
+@section('content')
+    <h1>Welcome to the {{Name}} Dashboard, {{ Auth::guard('{{LowerName}}')->user()->name }}</h1>
+@endsection

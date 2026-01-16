@@ -1,0 +1,24 @@
+<?php
+namespace App\Http\Controllers\{{Name}}\Auth;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+
+class LoginController extends Controller
+{
+    public function showLogin() { return view('{{LowerName}}.auth.login'); }
+
+    public function login(Request $request) {
+        $request->validate(['email' => 'required|email', 'password' => 'required']);
+        if (Auth::guard('{{LowerName}}')->attempt($request->only('email', 'password'), $request->filled('remember'))) {
+            return redirect()->intended(route('{{LowerName}}.home'));
+        }
+        return back()->withErrors(['email' => 'Invalid credentials.']);
+    }
+
+    public function logout() {
+        Auth::guard('{{LowerName}}')->logout();
+        return redirect()->route('{{LowerName}}.login');
+    }
+}

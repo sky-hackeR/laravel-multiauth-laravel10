@@ -1,0 +1,12 @@
+@extends('{{LowerName}}.layout.app')
+
+@section('content')
+<div class="auth-container">
+    <h2>Reset {{Name}} Password</h2>
+    <form method="POST" action="{{ route('{{LowerName}}.password.email') }}">
+        @csrf
+        <input type="email" name="email" placeholder="Email Address" required>
+        <button type="submit">Send Password Reset Link</button>
+    </form>
+</div>
+@endsection

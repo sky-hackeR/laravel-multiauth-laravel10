@@ -1,0 +1,15 @@
+@extends('{{LowerName}}.layout.app')
+
+@section('content')
+<div class="auth-container">
+    <h2>{{Name}} Login</h2>
+    <form method="POST" action="{{ route('{{LowerName}}.login.submit') }}">
+        @csrf
+        <input type="email" name="email" placeholder="Email" required autofocus>
+        <input type="password" name="password" placeholder="Password" required>
+        <label><input type="checkbox" name="remember"> Remember Me</label>
+        <button type="submit">Login</button>
+    </form>
+    <a href="{{ route('{{LowerName}}.password.request') }}">Forgot Your Password?</a>
+</div>
+@endsection

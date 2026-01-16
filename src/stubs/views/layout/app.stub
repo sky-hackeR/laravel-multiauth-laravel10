@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{Name}} Portal</title>
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body>
+    <nav>
+        @auth('{{LowerName}}')
+            <form action="{{ route('{{LowerName}}.logout') }}" method="POST">@csrf <button>Logout</button></form>
+        @endauth
+    </nav>
+    @yield('content')
+</body>
+</html>
