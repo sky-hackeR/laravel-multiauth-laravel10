@@ -1,14 +1,14 @@
 @extends('{{LowerName}}.layout.app')
 
 @section('content')
-<div class="auth-container">
+<div class="container">
     <h2>Update {{Name}} Password</h2>
-    <form method="POST" action="{{ route('{{LowerName}}.password.update') }}">
+    <form method="POST" action="{{ url('/{{LowerName}}/password/reset') }}">
         @csrf
         <input type="hidden" name="token" value="{{ $token }}">
         <input type="email" name="email" value="{{ $email ?? old('email') }}" required>
         <input type="password" name="password" placeholder="New Password" required>
-        <input type="password" name="password_confirmation" placeholder="Confirm Password" required>
+        <input type="password" name="password_confirmation" placeholder="Confirm New Password" required>
         <button type="submit">Reset Password</button>
     </form>
 </div>

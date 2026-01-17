@@ -1,15 +1,23 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>{{Name}} Portal</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body>
     <nav>
         @auth('{{LowerName}}')
-            <form action="{{ route('{{LowerName}}.logout') }}" method="POST">@csrf <button>Logout</button></form>
+            <a href="{{ url('/{{LowerName}}/home') }}">Dashboard</a>
+            <a href="#" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Logout</a>
+            <form id="logout-form" action="{{ url('/{{LowerName}}/logout') }}" method="POST" style="display: none;">
+                @csrf
+            </form>
+        @else
+            <a href="{{ url('/{{LowerName}}/login') }}">Login</a>
+            <a href="{{ url('/{{LowerName}}/register') }}">Register</a>
         @endauth
     </nav>
+
     @yield('content')
 </body>
 </html>
