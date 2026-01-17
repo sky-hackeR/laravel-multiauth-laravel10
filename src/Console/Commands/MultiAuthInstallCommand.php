@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 class MultiAuthInstallCommand extends Command
 {
     protected $signature = 'laravel-multi-auth:install {name} {--f|force}';
-    protected $description = 'Generate a professional modular multi-auth scaffold';
+    protected $description = 'Generate a professional modular multi-auth scaffold with physical file injection';
 
     public function handle()
     {
@@ -26,7 +26,7 @@ class MultiAuthInstallCommand extends Command
         $this->generateViews($name, $lower);
         $this->generateRoutes($name, $lower);
 
-        // 2. Physical File Injections (The Surgery)
+        // 2. Physical File Injections
         $this->updateAuthConfig($name, $lower);
         $this->registerMiddlewareInKernel($name);
 
@@ -34,56 +34,57 @@ class MultiAuthInstallCommand extends Command
     }
 
     /**
-     * Physical injection into Kernel.php
+     * Physically injects the middleware alias into Kernel.php using Regex
      */
     protected function registerMiddlewareInKernel($name)
     {
         $kernelPath = app_path('Http/Kernel.php');
-        if (!File::exists($kernelPath)) {
-            $this->error("Kernel.php not found at {$kernelPath}");
-            return;
-        }
+        if (!File::exists($kernelPath)) return;
 
         $content = File::get($kernelPath);
         $lower = strtolower($name);
         $alias = "auth.{$lower}";
         $class = "\\App\\Http\\Middleware\\RedirectIf{$name}::class";
 
-        // Check if alias already exists to prevent duplicates
-        if (!str_contains($content, "'{$alias}'")) {
-            // Locate the end of the middlewareAliases array
-            // We look for a common default entry to anchor our injection
-            $search = "'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,";
-            
-            if (str_contains($content, $search)) {
-                $replace = $search . "\n        '{$alias}' => {$class},";
-                $content = str_replace($search, $replace, $content);
-                File::put($kernelPath, $content);
-                $this->info("✅ Physically added '{$alias}' to Kernel.php");
-            } else {
-                $this->warn("⚠️ Could not find anchor in Kernel.php. Please add '{$alias}' manually.");
-            }
+        if (str_contains($content, "'{$alias}'")) return;
+
+        // Matches 'protected $middlewareAliases = [' OR 'protected $routeMiddleware = ['
+        $pattern = '/(protected\s+\$(middlewareAliases|routeMiddleware)\s+=\s+\[)/';
+        
+        if (preg_match($pattern, $content)) {
+            $replace = "$1\n        '{$alias}' => {$class},";
+            $content = preg_replace($pattern, $replace, $content);
+            File::put($kernelPath, $content);
+            $this->info("✅ Physically added '{$alias}' to Kernel.php");
         }
     }
 
+    /**
+     * Physically injects Guards and Providers into config/auth.php using Regex
+     */
     protected function updateAuthConfig($name, $lower)
     {
         $path = config_path('auth.php');
-        $config = File::get($path);
+        if (!File::exists($path)) return;
+
+        $content = File::get($path);
 
         // Inject Guard
-        $guard = "'{$lower}' => [ 'driver' => 'session', 'provider' => '{$lower}s' ],";
-        if (!Str::contains($config, "'{$lower}' =>")) {
-            $config = str_replace("'guards' => [", "'guards' => [\n        " . $guard, $config);
+        if (!str_contains($content, "'{$lower}' =>")) {
+            $guardPattern = "/('guards'\s*=>\s*\[)/";
+            $guardStub = "$1\n        '{$lower}' => [\n            'driver' => 'session',\n            'provider' => '{$lower}s',\n        ],";
+            $content = preg_replace($guardPattern, $guardStub, $content);
         }
 
         // Inject Provider
-        $provider = "'{$lower}s' => [ 'driver' => 'eloquent', 'model' => App\Models\\{$name}::class ],";
-        if (!Str::contains($config, "'{$lower}s' =>")) {
-            $config = str_replace("'providers' => [", "'providers' => [\n        " . $provider, $config);
+        if (!str_contains($content, "'{$lower}s' =>")) {
+            $providerPattern = "/('providers'\s*=>\s*\[)/";
+            $providerStub = "$1\n        '{$lower}s' => [\n            'driver' => 'eloquent',\n            'model' => App\Models\\{$name}::class,\n        ],";
+            $content = preg_replace($providerPattern, $providerStub, $content);
         }
 
-        File::put($path, $config);
+        File::put($path, $content);
+        $this->info("✅ Updated config/auth.php with '{$lower}' guard and provider.");
     }
 
     // --- Scaffolding Methods ---
@@ -125,7 +126,8 @@ class MultiAuthInstallCommand extends Command
 
     protected function generateMigration($name, $plural) {
         $file = date('Y_m_d_His') . "_create_{$plural}_table.php";
-        $content = str_replace(['{{TableName}}', '{{ClassName}}'], [$plural, $name], File::get(__DIR__ . '/../../stubs/Migration.stub'));
+        $content = File::get(__DIR__ . '/../../stubs/Migration.stub');
+        $content = str_replace(['{{TableName}}', '{{ClassName}}'], [$plural, $name], $content);
         File::put(database_path("migrations/{$file}"), $content);
     }
 
