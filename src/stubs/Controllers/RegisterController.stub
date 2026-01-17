@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\{{Name}}\Auth;
 
 use App\Http\Controllers\Controller;
@@ -9,22 +10,27 @@ use Illuminate\Support\Facades\Auth;
 
 class RegisterController extends Controller
 {
-    public function showRegister() { return view('{{LowerName}}.auth.register'); }
+    public function showRegister()
+    {
+        return view('{{LowerName}}.auth.register');
+    }
 
-    public function register(Request $request) {
+    public function register(Request $request)
+    {
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:{{LowerName}}s',
             'password' => 'required|string|min:8|confirmed',
         ]);
 
-        $user = {{Name}}::create([
+        ${{LowerName}} = {{Name}}::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
 
-        Auth::guard('{{LowerName}}')->login($user);
-        return redirect()->route('{{LowerName}}.home');
+        Auth::guard('{{LowerName}}')->login(${{LowerName}});
+
+        return redirect()->intended(url('/{{LowerName}}/home'));
     }
 }
