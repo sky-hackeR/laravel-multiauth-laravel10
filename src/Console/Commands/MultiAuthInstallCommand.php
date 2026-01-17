@@ -19,7 +19,8 @@ class MultiAuthInstallCommand extends Command
         $this->info("🚀 SkyHackeR Engine: Building '{$name}' Identity...");
 
         // 1. Generate Files
-        $this->generateModel($name);
+        // Pass both $name and $lower to fix the empty guard issue
+        $this->generateModel($name, $lower); 
         $this->generateMigration($name, Str::plural($lower));
         $this->generateControllers($name, $lower);
         $this->generateMiddleware($name, $lower);
@@ -112,8 +113,9 @@ class MultiAuthInstallCommand extends Command
         foreach ($viewMap as $stub => $file) { $this->copyStub($stub, "{$base}/{$file}", $name, $lower); }
     }
 
-    protected function generateModel($name) { 
-        $this->copyStub("Model.stub", app_path("Models/{$name}.php"), $name); 
+    // Takes $lower as an argument to fill {{LowerName}} to fix empty guard issue
+    protected function generateModel($name, $lower) { 
+        $this->copyStub("Model.stub", app_path("Models/{$name}.php"), $name, $lower); 
     }
 
     protected function generateMiddleware($name, $lower) { 
