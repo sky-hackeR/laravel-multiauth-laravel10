@@ -7,21 +7,31 @@ use App\Http\Controllers\{{Name}}\Auth\ResetPasswordController;
 
 Route::prefix('{{LowerName}}')->name('{{LowerName}}.')->group(function () {
 
-    // Public routes
-    Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
-    Route::post('/login', [LoginController::class, 'login']);
+    /**
+     * Entry Point: /{{LowerName}}
+     * Redirects to home if authenticated, otherwise Middleware kicks to login.
+     */
+    Route::get('/', function() {
+        return redirect()->route('{{LowerName}}.home');
+    })->middleware(['web', 'auth.{{LowerName}}']);
+
+    // This prevents logged-in users from seeing the login/register forms
+    Route::middleware(['web', 'guest.{{LowerName}}'])->group(function () {
+        Route::get('/login', [LoginController::class, 'showLogin'])->name('login');
+        Route::post('/login', [LoginController::class, 'login']);
+        Route::get('/register', [RegisterController::class, 'showRegister'])->name('register');
+        Route::post('/register', [RegisterController::class, 'register']);
+    });
+
+    // PUBLIC BUT NO REDIRECT
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
-
-    Route::get('/register', [RegisterController::class, 'showRegister'])->name('register');
-    Route::post('/register', [RegisterController::class, 'register']);
-
     Route::get('/password/reset', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.reset');
     Route::post('/password/email', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.request');
     Route::get('/password/reset/{token}', [ResetPasswordController::class, 'showResetForm'])->name('password.reset.form');
     Route::post('/password/reset', [ResetPasswordController::class, 'reset'])->name('password.update');
 
-    // Protected routes
-    Route::middleware(['auth.{{LowerName}}'])->group(function () {
+    // PROTECTED ROUTES
+    Route::middleware(['web', 'auth.{{LowerName}}'])->group(function () {
         Route::get('/home', function() { 
             return view('{{LowerName}}.home'); 
         })->name('home');

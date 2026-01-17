@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 class MultiAuthInstallCommand extends Command
 {
     protected $signature = 'laravel-multi-auth:install {name} {--f|force}';
-    protected $description = 'Generate a professional modular multi-auth scaffold with physical file injection';
+    protected $description = 'Generate a professional modular multi-auth scaffold with dual middleware injection';
 
     public function handle()
     {
@@ -19,23 +19,27 @@ class MultiAuthInstallCommand extends Command
         $this->info("🚀 SkyHackeR Engine: Building '{$name}' Identity...");
 
         // 1. Generate Files
-        // Pass both $name and $lower to fix the empty guard issue
         $this->generateModel($name, $lower); 
         $this->generateMigration($name, Str::plural($lower));
         $this->generateControllers($name, $lower);
+        
+        // Generates both RedirectIf and RedirectIfNot middleware files
         $this->generateMiddleware($name, $lower);
+        
         $this->generateViews($name, $lower);
         $this->generateRoutes($name, $lower);
 
         // 2. Physical File Injections
         $this->updateAuthConfig($name, $lower);
+        
+        // Registers both 'auth.name' and 'guest.name' aliases in Kernel.php
         $this->registerMiddlewareInKernel($name);
 
         $this->info("✅ '{$name}' Identity is now physically registered and ready!");
     }
 
     /**
-     * Physically injects the middleware alias into Kernel.php using Regex
+     * Physically injects TWO middleware aliases into Kernel.php using Regex
      */
     protected function registerMiddlewareInKernel($name)
     {
@@ -44,24 +48,31 @@ class MultiAuthInstallCommand extends Command
 
         $content = File::get($kernelPath);
         $lower = strtolower($name);
-        $alias = "auth.{$lower}";
-        $class = "\\App\\Http\\Middleware\\RedirectIf{$name}::class";
+        
+        $authAlias = "auth.{$lower}";
+        $guestAlias = "guest.{$lower}";
+        
+        // Ensure names match the files generated in generateMiddleware()
+        $authClass = "\\App\\Http\\Middleware\\RedirectIfNot{$name}::class";
+        $guestClass = "\\App\\Http\\Middleware\\RedirectIf{$name}::class";
 
-        if (str_contains($content, "'{$alias}'")) return;
+        if (str_contains($content, "'{$authAlias}'")) return;
 
         // Matches 'protected $middlewareAliases = [' OR 'protected $routeMiddleware = ['
         $pattern = '/(protected\s+\$(middlewareAliases|routeMiddleware)\s+=\s+\[)/';
         
         if (preg_match($pattern, $content)) {
-            $replace = "$1\n        '{$alias}' => {$class},";
+            // Inject both aliases at once for route protection and guest redirection
+            $replace = "$1\n        '{$authAlias}' => {$authClass},\n        '{$guestAlias}' => {$guestClass},";
             $content = preg_replace($pattern, $replace, $content);
+            
             File::put($kernelPath, $content);
-            $this->info("✅ Physically added '{$alias}' to Kernel.php");
+            $this->info("✅ Added '{$authAlias}' and '{$guestAlias}' to Kernel.php");
         }
     }
 
     /**
-     * Physically injects Guards and Providers into config/auth.php using Regex
+     * Physically injects Guards and Providers into config/auth.php
      */
     protected function updateAuthConfig($name, $lower)
     {
@@ -85,7 +96,7 @@ class MultiAuthInstallCommand extends Command
         }
 
         File::put($path, $content);
-        $this->info("✅ Updated config/auth.php with '{$lower}' guard and provider.");
+        $this->info("✅ Updated config/auth.php with '{$lower}' guard.");
     }
 
     // --- Scaffolding Methods ---
@@ -102,24 +113,34 @@ class MultiAuthInstallCommand extends Command
         $base = resource_path("views/{$lower}");
         File::ensureDirectoryExists("{$base}/auth/passwords");
         File::ensureDirectoryExists("{$base}/layout");
+
         $viewMap = [
-            'views/home.stub' => 'home.blade.php',
-            'views/layout/app.stub' => 'layout/app.blade.php',
-            'views/auth/login.stub' => 'auth/login.blade.php',
-            'views/auth/register.stub' => 'auth/register.blade.php',
+            'views/home.stub'                 => 'home.blade.php',
+            'views/layout/auth.stub'          => 'layout/auth.blade.php', // Renamed to auth per request
+            'views/auth/login.stub'           => 'auth/login.blade.php',
+            'views/auth/register.stub'        => 'auth/register.blade.php',
             'views/auth/passwords/email.stub' => 'auth/passwords/email.blade.php',
             'views/auth/passwords/reset.stub' => 'auth/passwords/reset.blade.php',
         ];
-        foreach ($viewMap as $stub => $file) { $this->copyStub($stub, "{$base}/{$file}", $name, $lower); }
+
+        foreach ($viewMap as $stub => $file) { 
+            $this->copyViewStub($stub, "{$base}/{$file}", $name, $lower); 
+        }
     }
 
-    // Takes $lower as an argument to fill {{LowerName}} to fix empty guard issue
     protected function generateModel($name, $lower) { 
         $this->copyStub("Model.stub", app_path("Models/{$name}.php"), $name, $lower); 
     }
 
     protected function generateMiddleware($name, $lower) { 
-        $this->copyStub("Middleware.stub", app_path("Http/Middleware/RedirectIf{$name}.php"), $name, $lower); 
+        $path = app_path('Http/Middleware');
+        File::ensureDirectoryExists($path);
+        
+        // 1. Guest Middleware: RedirectIfAdmin (Redirects to /admin/home if already logged in)
+        $this->copyStub("Middleware.stub", "{$path}/RedirectIf{$name}.php", $name, $lower); 
+        
+        // 2. Auth Middleware: RedirectIfNotAdmin (Redirects to /admin/login if NOT logged in)
+        $this->copyStub("MiddlewareAuthenticated.stub", "{$path}/RedirectIfNot{$name}.php", $name, $lower); 
     }
 
     protected function generateRoutes($name, $lower) { 
@@ -133,9 +154,22 @@ class MultiAuthInstallCommand extends Command
         File::put(database_path("migrations/{$file}"), $content);
     }
 
+    /**
+     * Helper for standard stubs (Controllers, Models, Routes)
+     */
     private function copyStub($stubName, $targetPath, $name, $lower = '') {
         $content = File::get(__DIR__ . "/../../stubs/{$stubName}");
         $content = str_replace(['{{Name}}', '{{LowerName}}'], [$name, $lower], $content);
+        File::put($targetPath, $content);
+    }
+
+    /**
+     * Helper for View stubs using the {{guard}} placeholder
+     */
+    private function copyViewStub($stubName, $targetPath, $name, $lower) { 
+        $content = File::get(__DIR__ . "/../../stubs/{$stubName}");
+        // Replaces {{guard}} with 'admin' and {{Name}} with 'Admin'
+        $content = str_replace(['{{Name}}', '{{guard}}'], [$name, $lower], $content);
         File::put($targetPath, $content);
     }
 }
